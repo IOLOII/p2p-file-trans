@@ -1,9 +1,6 @@
-package org.example;
+package org.example.client;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.Socket;
 
 public class PeerClient {
@@ -12,8 +9,9 @@ public class PeerClient {
     private PrintWriter out;
     private static BufferedReader stdIn;
 
-    PeerClient(String host, int port) throws IOException {
+    public PeerClient(String host, int port) throws IOException {
         socket = new Socket(host,port);
+        startClient();
     }
 
 
@@ -21,12 +19,20 @@ public class PeerClient {
     public PeerClient(String host, int port, BufferedReader stdIn) throws IOException {
         socket = new Socket(host, port);
 //        out = new PrintWriter(socket.getOutputStream(), true);
-        this.stdIn = stdIn;
+        if(stdIn == null) {
+            this.stdIn = new BufferedReader(new InputStreamReader(System.in));
+        } else {
+            this.stdIn = stdIn;
+        }
     }
 
     public void sendMessage(String message) {
         try {
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            // 获取 socket 的输出流
+            OutputStream outputStream = socket.getOutputStream();
+            // 创建 PrintWriter 对象，自动刷新输出
+            PrintWriter out = new PrintWriter(outputStream, true);
+            // 发送消息
             out.println(message);
         } catch (IOException e) {
             /**
@@ -52,8 +58,8 @@ public class PeerClient {
 //
 //    }
 
-    public String receiveMessage() throws IOException {
-        return stdIn.readLine();
+    public void receiveMessage() throws IOException {
+//        return stdIn.readLine();
     }
 
     public static void main(String[] args) {
@@ -88,7 +94,7 @@ public class PeerClient {
 
     }
 
-    private void close() throws IOException {
+    public void close() throws IOException {
             if (stdIn != null) {
                 stdIn.close();
             }
@@ -102,11 +108,12 @@ public class PeerClient {
 
     public void startClient() {
         try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             // Start a separate thread to handle receiving messages
             Thread receiveThread = new Thread(() -> {
                 try {
                     while (true) {
-                        String response = receiveMessage();
+                        String response = in.readLine();
                         if (response == null) break; // Server closed the connection
                         System.out.println("Server responded: " + response);
                     }
@@ -119,14 +126,14 @@ public class PeerClient {
             // Main loop to handle user input
             System.out.println("Connected to server. Type 'exit' to quit.");
             String userInput;
-            while (!(userInput = stdIn.readLine()).equals("exit")) {
-                sendMessage(userInput);
-            }
+//            while (!(userInput = stdIn.readLine()).equals("exit")) {
+//                sendMessage(userInput);
+//            }
 
             // Wait for the receive thread to finish
             receiveThread.interrupt();
             receiveThread.join();
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException | IOException e) {
             e.printStackTrace();
         } finally {
             try {

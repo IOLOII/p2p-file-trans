@@ -1,4 +1,4 @@
-package org.example;
+package org.example.server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,29 +10,33 @@ import java.net.Socket;
 public class PeerServer {
 
     private final ServerSocket server;
-    private Socket socket;
+    public Socket socket;
 
     public PeerServer(int port) throws IOException{
         server = new ServerSocket(port);
+        listen();
     }
-    public void listen(){
+    public void listen() {
         try {
-            System.out.println("server = " + server);
-            System.out.println("waiting for connect ...");
+            System.out.println("Server started on port " + server.getLocalPort());
+            System.out.println("Waiting for connection...");
 
+            // 阻塞等待客户端连接
             socket = server.accept();
+            System.out.println("Client connected: " + socket.getInetAddress());
+
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 
-            Thread listenThread = new Thread(()->{
+            Thread listenThread = new Thread(() -> {
                 try {
                     String receivedMessage;
-                    while ( (receivedMessage = in.readLine()) != null){
-                        System.out.println("received: "+ receivedMessage);
-                        out.println("123");
+                    while ((receivedMessage = in.readLine()) != null) {
+                        System.out.println("Received: " + receivedMessage);
+                        out.println("服务器收到");
                         send(receivedMessage);
                     }
-                } catch (IOException e){
+                } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
@@ -42,16 +46,15 @@ public class PeerServer {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public void send(String message) {
-        try {
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            out.println(message);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+//            out.println(message);
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
 
     }
 
@@ -68,6 +71,7 @@ public class PeerServer {
     }
 
 
-
-
+    public void close() throws IOException {
+        socket.close();
+    }
 }

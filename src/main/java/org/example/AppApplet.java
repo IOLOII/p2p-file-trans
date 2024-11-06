@@ -8,17 +8,27 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Duration;
+import org.example.client.PeerClient;
+import org.example.server.PeerServer;
+import org.example.utils.IPv6Util;
 
 import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 public class AppApplet extends Application {
     private SimpleDoubleProperty progress = new SimpleDoubleProperty(0);
@@ -27,10 +37,21 @@ public class AppApplet extends Application {
     private Button uploadButton;
     private Button stopButton;
     private List<File> selectedFiles;
+    private TextField ipv6Field;
+    private Label resultLabel;
+    private Button validateButton;
+    private TextField portField;
+    private TextArea fileDetails;
+    private PeerServer p2pServer;
+    private static int serverport;
+    private PeerClient p2pConnect;
+    private static String serverhost;
+    private TextField messageFiled;
+    private Label flagLabel;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        int a = 3;
+        int a = 4;
         if (a == 1) {
 
             Button btn = new Button("Click");
@@ -112,9 +133,44 @@ public class AppApplet extends Application {
             VBox vbox = new VBox(10); // 间距为10
             vbox.setPadding(new Insets(10, 10, 10, 10));
 
+            // 获取本地 IPv6 地址
+            String localIPv6Address = IPv6Util.getLocalIPv6Address();
+            // 创建 Label 显示 IPv6 地址
+            Label ipAddressLabel = new Label(localIPv6Address == null ? "No IPv6 address found" : localIPv6Address);
+            // 创建按钮
+            Button copyButton = new Button("Copy");
+            copyButton.setOnAction(e -> {
+                Clipboard clipboard = Clipboard.getSystemClipboard();
+                ClipboardContent content = new ClipboardContent();
+                content.putString(ipAddressLabel.getText());
+                clipboard.setContent(content);
+            });
+
+            // 创建 HBox 容器
+            HBox hBox1 = new HBox(10, ipAddressLabel, copyButton);
+            hBox1.setAlignment(Pos.CENTER);
+
+
+            ipv6Field = new TextField();
+            ipv6Field.setPrefWidth(200); // 设置输入框的首选宽度
+            portField = new TextField();
+            portField.setPrefWidth(100); // 设置输入框的首选宽度
+            HBox hBox2 = new HBox(10, portField, ipv6Field);
+            hBox2.setPrefWidth(320); // 设置 HBox 的首选宽度
+
+
+            validateButton = new Button("Validate IPv6 Address");
+            resultLabel = new Label();
+            validateButton.setOnAction(event -> validateIPv6Address());
+
+            VBox vBox = new VBox(10);
+            vBox.setPadding(new Insets(10));
+            vBox.getChildren().addAll(ipv6Field, validateButton, resultLabel);
+
+
             // 创建一个按钮
             uploadButton = new Button("选择文件");
-            TextArea fileDetails = new TextArea();
+            fileDetails = new TextArea();
             fileDetails.setEditable(false); // 不允许编辑
             fileDetails.setWrapText(true);
             fileDetails.setPrefWidth(100);
@@ -134,12 +190,17 @@ public class AppApplet extends Application {
                 );
 
                 // 打开文件选择对话框
-                selectedFiles = fileChooser.showOpenMultipleDialog(primaryStage);
+                List<File> _selectedFiles = fileChooser.showOpenMultipleDialog(primaryStage);
+                if (_selectedFiles == null || _selectedFiles.isEmpty()) return;
+                // Create a new ArrayList from the selected files
+                selectedFiles = new ArrayList<>(_selectedFiles);
+
+
                 if (selectedFiles != null && !selectedFiles.isEmpty()) {
                     fileDetails.setText("");
                     for (File file : selectedFiles) {
                         fileDetails.appendText("文件名: " + file.getName() + "\n");
-                        fileDetails.appendText("大小: " + file.length()/1024/1024 + " MB \n");
+                        fileDetails.appendText("大小: " + file.length() / 1024 / 1024 + " MB \n");
                         fileDetails.appendText("路径: " + file.getAbsolutePath() + "\n\n");
                     }
                 }
@@ -152,7 +213,7 @@ public class AppApplet extends Application {
 
             // 创建按钮
             startButton = new Button("开始");
-            startButton.setOnAction(event->{
+            startButton.setOnAction(event -> {
                 if (selectedFiles != null && !selectedFiles.isEmpty()) {
                     startProgress(event);
                 } else {
@@ -163,11 +224,11 @@ public class AppApplet extends Application {
                     alert.showAndWait();
                 }
             });
-            
+
             stopButton = new Button("停止");
             stopButton.setVisible(false);
             stopButton.setManaged(false);
-            
+
             stopButton.setOnAction(this::stopProgress);
 
             // 创建状态标签
@@ -175,29 +236,123 @@ public class AppApplet extends Application {
 
 
             // 将控件添加到VBox中
-            vbox.getChildren().addAll(uploadButton, fileDetails, statusLabel,progressBar, startButton,stopButton);
+            vbox.getChildren().addAll(hBox1, hBox2, vBox, uploadButton, fileDetails, statusLabel, progressBar, startButton, stopButton);
 
             // 设置场景
-            Scene scene = new Scene(vbox, 400, 300);
+            Scene scene = new Scene(vbox, 400, 500);
+            primaryStage.setTitle("JavaFX 文件上传示例");
+            primaryStage.setScene(scene);
+            primaryStage.show();
+        } else if (a == 4) {
+            // 创建VBox布局
+            VBox vbox = new VBox(10); // 间距为10
+            vbox.setPadding(new Insets(10, 10, 10, 10));
+
+            Button connectServerBtn = new Button("connect");
+            connectServerBtn.setOnAction(actionEvent -> {
+                try {
+                    connectServer("open");
+                } catch (IOException e) {
+                    e.printStackTrace();
+//                    throw new RuntimeException(e);
+                }
+            });
+            Button disconnectServerBtn = new Button("disConnect");
+            disconnectServerBtn.setOnAction(actionEvent -> {
+                try {
+                    connectServer("close");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            });
+
+            Button openServerbtn = new Button("server");
+            openServerbtn.setOnAction(actionEvent -> {
+                try {
+                    createServer(serverport);
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            Button closeServerBtn = new Button("close Server");
+            closeServerBtn.setOnAction(actionEvent -> {
+                try {
+                    createServer("close");
+                } catch (IOException e) {
+                    throw new RuntimeException(e);
+                }
+            });
+            flagLabel = new Label("标识");
+
+            messageFiled = new TextField("发送文字");
+
+            Button sendToClientBtn = new Button("发送给客户端");
+            sendToClientBtn.setOnAction(actionEvent -> {
+                p2pServer.send(messageFiled.getText());
+                messageFiled.clear();
+            });
+            Button sendToServerBtn = new Button("发送给服务端");
+            sendToServerBtn.setOnAction(actionEvent -> {
+                p2pConnect.sendMessage(messageFiled.getText());
+                messageFiled.clear();
+            });
+
+            // 将控件添加到VBox中
+            vbox.getChildren().addAll(connectServerBtn, disconnectServerBtn, openServerbtn, closeServerBtn, messageFiled, sendToClientBtn, sendToServerBtn,flagLabel);
+
+            // 设置场景
+            Scene scene = new Scene(vbox, 400, 500);
             primaryStage.setTitle("JavaFX 文件上传示例");
             primaryStage.setScene(scene);
             primaryStage.show();
         }
     }
 
+    private void createServer(int serverport) throws IOException {
+        p2pServer = new PeerServer(serverport);
+        flagLabel.setText("当前为服务端"+serverhost);
+//        p2pServer.
+        System.out.println("create server");
+    }
+
+    private void createServer(String status) throws IOException {
+        if (Objects.equals(status, "close")) {
+            p2pServer.close();
+            System.out.println("closed server");
+        }
+    }
+
+    private void connectServer(String status) throws IOException {
+        if (Objects.equals(status, "open")) {
+            p2pConnect = new PeerClient(serverhost, serverport);
+            flagLabel.setText("当前为客户端");
+            System.out.println("connect to server");
+
+        } else {
+            p2pConnect.close();
+            System.out.println("closed connect");
+        }
+    }
+
+    private void validateIPv6Address() {
+        String ipv6Address = ipv6Field.getText();
+        boolean isValid = IPv6Util.isIPv6(ipv6Address);
+        resultLabel.setText(isValid ? "Valid IPv6 Address" : "Invalid IPv6 Address");
+    }
+
     private void stopProgress(ActionEvent actionEvent) {
         timeline.stop();
         selectedFiles.clear();
-//        progress.set(0);
+        fileDetails.clear();
+        progress.set(0);
         changeBtns(true);
     }
 
     /**
-     *
      * @param bf true 开启状态，默认状态｜ false 操作上传的中间状态
      */
     public void changeBtns(Boolean bf) {
-        if (bf){
+        if (bf) {
             uploadButton.setDisable(false);
             stopButton.setVisible(false);
             startButton.setVisible(true);
@@ -235,6 +390,10 @@ public class AppApplet extends Application {
 
 
     public static void main(String[] args) {
+        serverport = 12334;
+
+        serverhost = IPv6Util.getLocalIPv6Address();
+        System.out.println("本机IPv6: " + serverhost);
         launch(args);
     }
 }
