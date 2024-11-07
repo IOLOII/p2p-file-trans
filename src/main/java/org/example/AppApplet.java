@@ -4,7 +4,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.beans.property.SimpleDoubleProperty;
-import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
@@ -22,7 +21,8 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.example.client.PeerClient;
 import org.example.server.PeerServer;
-import org.example.utils.IPv6Util;
+import org.example.utils.IPUtil;
+import org.example.utils.Time;
 
 import java.io.File;
 import java.io.IOException;
@@ -48,6 +48,14 @@ public class AppApplet extends Application {
     private static String serverhost;
     private TextField messageFiled;
     private Label flagLabel;
+    private TextArea chatArea;
+    private String appFlag; // server client
+    private Button connectServerBtn;
+    private Button disconnectServerBtn;
+    private Button openServerbtn;
+    private Button closeServerBtn;
+    private Button sendToServerBtn;
+    private Button sendToClientBtn;
 
     @Override
     public void start(Stage primaryStage) throws Exception {
@@ -134,7 +142,7 @@ public class AppApplet extends Application {
             vbox.setPadding(new Insets(10, 10, 10, 10));
 
             // 获取本地 IPv6 地址
-            String localIPv6Address = IPv6Util.getLocalIPv6Address();
+            String localIPv6Address = IPUtil.getLocalIPv6Address();
             // 创建 Label 显示 IPv6 地址
             Label ipAddressLabel = new Label(localIPv6Address == null ? "No IPv6 address found" : localIPv6Address);
             // 创建按钮
@@ -248,57 +256,80 @@ public class AppApplet extends Application {
             VBox vbox = new VBox(10); // 间距为10
             vbox.setPadding(new Insets(10, 10, 10, 10));
 
-            Button connectServerBtn = new Button("connect");
+            connectServerBtn = new Button("connect");
             connectServerBtn.setOnAction(actionEvent -> {
                 try {
                     connectServer("open");
+                    changeAppFlag("client");
                 } catch (IOException e) {
                     e.printStackTrace();
 //                    throw new RuntimeException(e);
                 }
             });
-            Button disconnectServerBtn = new Button("disConnect");
+            disconnectServerBtn = new Button("disConnect");
             disconnectServerBtn.setOnAction(actionEvent -> {
                 try {
                     connectServer("close");
+                    changeAppFlag("default");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
             });
 
-            Button openServerbtn = new Button("server");
+            openServerbtn = new Button("server");
             openServerbtn.setOnAction(actionEvent -> {
                 try {
                     createServer(serverport);
+                    changeAppFlag("server");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
-            Button closeServerBtn = new Button("close Server");
+            closeServerBtn = new Button("close Server");
             closeServerBtn.setOnAction(actionEvent -> {
                 try {
                     createServer("close");
+                    changeAppFlag("default");
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
             });
+
+
+            // 创建聊天区域
+            chatArea = new TextArea();
+            chatArea.setEditable(false);
+            chatArea.setWrapText(true);
+
+
             flagLabel = new Label("标识");
 
             messageFiled = new TextField("发送文字");
 
-            Button sendToClientBtn = new Button("发送给客户端");
+            sendToClientBtn = new Button("发送给客户端");
             sendToClientBtn.setOnAction(actionEvent -> {
-                p2pServer.send(messageFiled.getText());
+                String message = messageFiled.getText();
+                p2pServer.send(message);
+                chatArea.appendText(appFlag + ": " + Time.getFormattedTimestamp() + "\n");
+                chatArea.appendText(appFlag + ": " + message + "\n");
                 messageFiled.clear();
             });
-            Button sendToServerBtn = new Button("发送给服务端");
+            sendToServerBtn = new Button("发送给服务端");
             sendToServerBtn.setOnAction(actionEvent -> {
-                p2pConnect.sendMessage(messageFiled.getText());
+                String message = messageFiled.getText();
+                p2pConnect.send(message);
+                chatArea.appendText(appFlag + ": " + Time.getFormattedTimestamp() + "\n");
+                chatArea.appendText(appFlag + ": " + message + "\n");
+                messageFiled.clear();
+            });
+
+            Button clearChatBtn = new Button("清除聊天内容");
+            clearChatBtn.setOnAction(actionEvent -> {
                 messageFiled.clear();
             });
 
             // 将控件添加到VBox中
-            vbox.getChildren().addAll(connectServerBtn, disconnectServerBtn, openServerbtn, closeServerBtn, messageFiled, sendToClientBtn, sendToServerBtn,flagLabel);
+            vbox.getChildren().addAll(connectServerBtn, disconnectServerBtn, openServerbtn, closeServerBtn, chatArea, messageFiled, sendToClientBtn, sendToServerBtn, flagLabel);
 
             // 设置场景
             Scene scene = new Scene(vbox, 400, 500);
@@ -308,17 +339,63 @@ public class AppApplet extends Application {
         }
     }
 
+    private void changeAppFlag(String flag) {
+        appFlag = flag;
+        switch (flag) {
+            case "client":
+                openServerbtn.setVisible(false);
+                closeServerBtn.setVisible(false);
+                connectServerBtn.setVisible(true);
+                disconnectServerBtn.setVisible(true);
+                sendToServerBtn.setVisible(true);
+                sendToClientBtn.setVisible(false);
+                break;
+            case "server":
+                openServerbtn.setVisible(true);
+                closeServerBtn.setVisible(true);
+                connectServerBtn.setVisible(false);
+                disconnectServerBtn.setVisible(false);
+                sendToServerBtn.setVisible(false);
+                sendToClientBtn.setVisible(true);
+                break;
+            default:
+                openServerbtn.setVisible(true);
+                closeServerBtn.setVisible(true);
+                connectServerBtn.setVisible(true);
+                disconnectServerBtn.setVisible(true);
+                sendToServerBtn.setVisible(true);
+                sendToClientBtn.setVisible(true);
+                break;
+
+        }
+    }
+
+    /**
+     * 开启服务
+     *
+     * @param serverport
+     * @throws IOException
+     */
     private void createServer(int serverport) throws IOException {
         p2pServer = new PeerServer(serverport);
-        flagLabel.setText("当前为服务端"+serverhost);
+        p2pServer.listen();
+        flagLabel.setText("当前为服务端" + serverhost);
 //        p2pServer.
         System.out.println("create server");
     }
 
+    /**
+     * 关闭服务
+     *
+     * @param status
+     * @throws IOException
+     */
     private void createServer(String status) throws IOException {
-        if (Objects.equals(status, "close")) {
+        if (Objects.equals(status, "close") && !Objects.equals(p2pServer, null)) {
             p2pServer.close();
             System.out.println("closed server");
+        } else {
+            System.out.println("当前服务未启动");
         }
     }
 
@@ -329,6 +406,10 @@ public class AppApplet extends Application {
             System.out.println("connect to server");
 
         } else {
+            if (Objects.equals(p2pConnect, null)) {
+                System.out.println("当前未连接任何服务端");
+                return;
+            }
             p2pConnect.close();
             System.out.println("closed connect");
         }
@@ -336,7 +417,7 @@ public class AppApplet extends Application {
 
     private void validateIPv6Address() {
         String ipv6Address = ipv6Field.getText();
-        boolean isValid = IPv6Util.isIPv6(ipv6Address);
+        boolean isValid = IPUtil.isIPv6(ipv6Address);
         resultLabel.setText(isValid ? "Valid IPv6 Address" : "Invalid IPv6 Address");
     }
 
@@ -392,7 +473,7 @@ public class AppApplet extends Application {
     public static void main(String[] args) {
         serverport = 12334;
 
-        serverhost = IPv6Util.getLocalIPv6Address();
+        serverhost = IPUtil.getLocalIPv4Address();
         System.out.println("本机IPv6: " + serverhost);
         launch(args);
     }

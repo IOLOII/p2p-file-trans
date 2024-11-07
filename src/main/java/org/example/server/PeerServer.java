@@ -6,72 +6,105 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.Objects;
 
 public class PeerServer {
+    private ServerSocket serverSocket;
+    private Socket clientSocket;
+    private PrintWriter out;
+    private BufferedReader in;
+    private Thread listenThread;
+    private volatile boolean running = true;
 
-    private final ServerSocket server;
-    public Socket socket;
-
-    public PeerServer(int port) throws IOException{
-        server = new ServerSocket(port);
-        listen();
+    public PeerServer(int port) throws IOException {
+        serverSocket = new ServerSocket(port);
+        System.out.println("Server started on port " + port);
     }
+
     public void listen() {
-        try {
-            System.out.println("Server started on port " + server.getLocalPort());
-            System.out.println("Waiting for connection...");
+        listenThread = new Thread(() -> {
+            try {
+                clientSocket = serverSocket.accept();
 
-            // 阻塞等待客户端连接
-            socket = server.accept();
-            System.out.println("Client connected: " + socket.getInetAddress());
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-
-            Thread listenThread = new Thread(() -> {
-                try {
-                    String receivedMessage;
-                    while ((receivedMessage = in.readLine()) != null) {
-                        System.out.println("Received: " + receivedMessage);
-                        out.println("服务器收到");
-                        send(receivedMessage);
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
+                String clientIp = String.valueOf(clientSocket.getInetAddress());
+                if (clientIp.startsWith("/")) {
+                    clientIp = clientIp.substring(1);
                 }
-            });
+                System.out.println("Client connected: " + clientIp);
 
-            listenThread.start();
+                out = new PrintWriter(clientSocket.getOutputStream(), true);
+                in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+                // Start a loop to read messages from the client
+                String message;
+                while (running) {
+                    message = in.readLine();
+                    if (!Objects.equals(message, null)) {
+                        System.out.println("Received from client: " + message);
+                    }
+                    if ("STOP".equals(message)) {
+                        close();
+                    }
+                }
+            } catch (IOException e) {
+                System.out.println("服务端关闭");
+//                e.printStackTrace();
+//            } finally {
+//                stopListening();
+            }
+        });
+        listenThread.start();
     }
 
     public void send(String message) {
-//        try {
-//            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-//            out.println(message);
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
+        if (out != null) {
+            System.out.println("服务端发送内容；" + message);
+            out.println(message);
+        } else {
+            System.out.println("No client connected, cannot send message.");
+        }
+    }
 
+    public synchronized void stopListening() {
+        if (!running) return;
+        running = false;
+        try {
+            if (in != null) {
+                in.close();
+            }
+            if (out != null) {
+                out.close();
+            }
+            if (clientSocket != null) {
+                clientSocket.close();
+            }
+            if (serverSocket != null) {
+                serverSocket.close();
+            }
+            if (listenThread != null) {
+                listenThread.interrupt(); // 尝试中断监听线程
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void close() {
+        stopListening();
     }
 
     public static void main(String[] args) {
-        int port = 6789;
-        PeerServer server = null;
         try {
-            server = new PeerServer(port);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            PeerServer server = new PeerServer(1234);
+            server.listen();
+
+            // 保持主线程运行，以便服务器可以继续监听
+            while (true) {
+                Thread.sleep(1000);
+            }
+        } catch (IOException | InterruptedException e) {
+            e.printStackTrace();
         }
-        server.listen();
-
     }
 
-
-    public void close() throws IOException {
-        socket.close();
-    }
 }
