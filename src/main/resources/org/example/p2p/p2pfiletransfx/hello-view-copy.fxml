@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox fx:id="container" alignment="TOP_CENTER" maxHeight="560.0" maxWidth="300.0" minHeight="560.0" minWidth="300.0" prefHeight="560.0" prefWidth="300.0" spacing="20.0" xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="org.example.p2p.p2pfiletransfx.controller.AppController">
+    <padding>
+        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+    </padding>
+    <VBox prefWidth="100.0">
+        <children>
+            <HBox prefHeight="30.0" prefWidth="200.0">
+                <children>
+                    <Label minWidth="40.0" prefHeight="30.0" text="IP：" />
+                    <TextField fx:id="currentTipText" disable="true" editable="false" minHeight="30.0" minWidth="160.0" prefHeight="30.0" promptText="current ip" text="127.0.0.1" />
+                    <Button fx:id="copyBtn" minWidth="60.0" mnemonicParsing="false" onAction="#onCopyButtonClick" prefHeight="30.0" text="复制" />
+                </children>
+            </HBox>
+
+            <ToolBar prefHeight="40.0">
+                <items>
+                    <Button fx:id="connect" mnemonicParsing="false" onAction="#connectServer" text="连接" />
+                    <Button fx:id="disconnect" mnemonicParsing="false" onAction="#disConnectServer" text="断开" />
+                    <Button fx:id="startserver" mnemonicParsing="false" onAction="#createServer" text="开启" />
+                    <Button fx:id="closeserver" mnemonicParsing="false" onAction="#closeServer" text="关闭" />
+                </items>
+            </ToolBar>
+
+        </children>
+    </VBox>
+
+    <Label fx:id="welcomeText" text="端" />
+    <Pane fx:id="chatbox">
+        <children>
+            <TextArea fx:id="chatHistory" editable="false" prefHeight="150.0" prefWidth="260.0" promptText="..." wrapText="true" />
+        </children>
+    </Pane>
+    <VBox>
+        <children>
+         <TextArea fx:id="fileList" editable="false" prefHeight="60.0" wrapText="true" />
+            <ProgressBar fx:id="fileProgress" prefHeight="10.0" prefWidth="260.0" progress="0.4" />
+            <HBox>
+                <children>
+                    <Button fx:id="uploadFile" mnemonicParsing="false" onAction="#pickFiles" text="文件" />
+                </children>
+            </HBox>
+        </children>
+    </VBox>
+    <BorderPane prefHeight="0.0" prefWidth="310.0">
+        <right>
+            <Button fx:id="sendmsg" minHeight="80.0" minWidth="60.0" mnemonicParsing="false" onAction="#sendMessage" text="发送" BorderPane.alignment="CENTER" />
+        </right>
+        <left>
+            <TextArea fx:id="messageText" minHeight="80.0" prefHeight="200.0" prefWidth="200.0" promptText="请输入..." wrapText="true" BorderPane.alignment="CENTER" />
+        </left>
+    </BorderPane>
+    <Button onAction="#onHelloButtonClick" text="Hello!" />
+</VBox>
