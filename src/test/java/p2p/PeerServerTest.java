@@ -43,41 +43,37 @@ public class PeerServerTest {
         server.listen();
 
         PeerClient client = null;
-        try {
-            client = new PeerClient(host, port);
-            PeerClient finalClient = client;
-            client.startReceiving(() -> {
-                try {
-                    String message = finalClient.receive();
-                    System.out.println("Received from server: " + message);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            });
-            server.send("服务端发送：1");
-            server.send("服务端发送：22");
-            server.send("服务端发送：3");
-            server.send("服务端发送：44");
-            server.send("服务端发送：5");
-            server.send("服务端发送：66");
+        client = new PeerClient(host, port);
+        PeerClient finalClient = client;
+        client.startReceiving(() -> {
+            try {
+                String message = finalClient.receive();
+                System.out.println("Received from server: " + message);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        server.send("服务端发送：1");
+        server.send("服务端发送：22");
+        server.send("服务端发送：3");
+        server.send("服务端发送：44");
+        server.send("服务端发送：5");
+        server.send("服务端发送：66");
 
-            client.send("客户端发送：1");
-            client.send("客户端发送：2");
-            client.send("客户端发送：3");
-            client.send("客户端发送：4");
-            client.send("客户端发送：5");
+        client.send("客户端发送：1");
+        client.send("客户端发送：2");
+        client.send("客户端发送：3");
+        client.send("客户端发送：4");
+        client.send("客户端发送：5");
 
-            server.send("服务端发送：7");
-            server.send("服务端发送：88");
-            server.send("服务端发送：9");
-            server.send("服务端发送：00");
+        server.send("服务端发送：7");
+        server.send("服务端发送：88");
+        server.send("服务端发送：9");
+        server.send("服务端发送：00");
 
 //            client.close();
 //            server.close();
-            assertTrue(true);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        assertTrue(true);
     }
 //    @Test
 //    public void testOut() {

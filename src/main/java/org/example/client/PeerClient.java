@@ -1,9 +1,17 @@
 package org.example.client;
 
+import org.example.AppApplet;
+
 import java.io.*;
 import java.net.Socket;
 
+
+
 public class PeerClient {
+//    public interface MessageCallback {
+//        void onMessageReceived(String message);
+//    }
+//    private MessageCallback callback;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -15,6 +23,8 @@ public class PeerClient {
             socket = new Socket(host, port);
             System.out.println("Connected to " + host + ":" + port);
 
+//            this.callback = callback;
+
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
         } catch (IOException e) {
@@ -22,6 +32,7 @@ public class PeerClient {
             System.out.println("当前无启动服务");
         }
     }
+
 
     public void send(String message) {
         if (out != null) {
@@ -32,6 +43,7 @@ public class PeerClient {
         }
     }
 
+
     public void startReceiving(Runnable onMessageReceived) {
         receiveThread = new Thread(() -> {
             try {
@@ -40,7 +52,9 @@ public class PeerClient {
                     if (message == null || !running) {
                         break;
                     }
+//                    this.callback.onMessageReceived(message);
                     onMessageReceived.run();
+
                 }
             } catch (IOException e) {
                 // 处理IOException，可能是由于流被关闭引起的

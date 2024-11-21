@@ -35,6 +35,8 @@ public class PeerServer {
                 out = new PrintWriter(clientSocket.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
 
+                send("连接建立");
+
                 // Start a loop to read messages from the client
                 String message;
                 while (running) {
@@ -45,6 +47,7 @@ public class PeerServer {
                     if ("STOP".equals(message)) {
                         close();
                     }
+                    out.println(message);
                 }
             } catch (IOException e) {
                 System.out.println("服务端关闭");

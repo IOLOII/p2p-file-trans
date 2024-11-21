@@ -48,7 +48,7 @@ public class AppApplet extends Application {
     private static String serverhost;
     private TextField messageFiled;
     private Label flagLabel;
-    private TextArea chatArea;
+    public TextArea chatArea;
     private String appFlag; // server client
     private Button connectServerBtn;
     private Button disconnectServerBtn;
@@ -402,8 +402,20 @@ public class AppApplet extends Application {
     private void connectServer(String status) throws IOException {
         if (Objects.equals(status, "open")) {
             p2pConnect = new PeerClient(serverhost, serverport);
-            flagLabel.setText("当前为客户端");
-            System.out.println("connect to server");
+            p2pConnect.startReceiving(() -> {
+    //                System.out.println(msg);
+                try {
+                    String message = p2pConnect.receive();
+                    System.out.println("Received from server: " + message);
+                    chatArea.appendText(appFlag + ": " + message + "\n");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+    //            flagLabel.setText("当前为客户端");
+    //            System.out.println("connect to server");
+
+            });
 
         } else {
             if (Objects.equals(p2pConnect, null)) {
@@ -469,6 +481,9 @@ public class AppApplet extends Application {
         timeline.play();
     }
 
+    public void  setAreaText(String msg){
+        chatArea.appendText(appFlag + ": " + msg + "\n");
+    }
 
     public static void main(String[] args) {
         serverport = 12334;
